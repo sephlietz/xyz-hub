@@ -18,6 +18,8 @@
  */
 package com.here.naksha.lib.hub.storages;
 
+import static com.here.naksha.lib.core.exceptions.UncheckedException.unchecked;
+import static com.here.naksha.lib.core.models.PluginCache.getEventHandlerConstructor;
 import static com.here.naksha.lib.core.util.storage.RequestHelper.readFeaturesByIdRequest;
 import static com.here.naksha.lib.core.util.storage.RequestHelper.readFeaturesByIdsRequest;
 import static com.here.naksha.lib.core.util.storage.ResultHelper.readFeatureFromResult;
@@ -30,6 +32,7 @@ import com.here.naksha.lib.core.NakshaAdminCollection;
 import com.here.naksha.lib.core.NakshaContext;
 import com.here.naksha.lib.core.NakshaVersion;
 import com.here.naksha.lib.core.exceptions.NoCursor;
+import com.here.naksha.lib.core.lambdas.Fe3;
 import com.here.naksha.lib.core.models.XyzError;
 import com.here.naksha.lib.core.models.naksha.EventHandler;
 import com.here.naksha.lib.core.models.naksha.Space;
@@ -60,13 +63,21 @@ public class NHSpaceStorageReader implements IReadSession {
   private static final int DEFAULT_FETCH_SIZE = 1_000;
   private static final Logger logger = LoggerFactory.getLogger(NHSpaceStorageReader.class);
 
-  /** Singleton instance of NakshaHub storage implementation */
+  /**
+   * Singleton instance of NakshaHub storage implementation
+   */
   protected final @NotNull INaksha nakshaHub;
-  /** Runtime NakshaContext which is to be associated with read operations */
+  /**
+   * Runtime NakshaContext which is to be associated with read operations
+   */
   protected final @NotNull NakshaContext context;
-  /** Flag to indicate whether it has to connect to master storage instance or not */
+  /**
+   * Flag to indicate whether it has to connect to master storage instance or not
+   */
   protected final boolean useMaster;
-  /** List of Admin virtual spaces with relevant event handlers required to support event processing */
+  /**
+   * List of Admin virtual spaces with relevant event handlers required to support event processing
+   */
   protected final @NotNull Map<String, List<IEventHandler>> virtualSpaces;
 
   protected final @NotNull EventPipelineFactory pipelineFactory;
@@ -220,7 +231,9 @@ public class NHSpaceStorageReader implements IReadSession {
     final String spaceId = rf.getCollections().get(0);
     final EventPipeline pipeline = pipelineFactory.eventPipeline();
     final Result result = setupEventPipelineForAdminVirtualSpace(spaceId, pipeline);
-    if (!(result instanceof SuccessResult)) return result;
+    if (!(result instanceof SuccessResult)) {
+      return result;
+    }
     return pipeline.sendEvent(rf);
   }
 
@@ -248,7 +261,9 @@ public class NHSpaceStorageReader implements IReadSession {
     final String spaceId = rf.getCollections().get(0);
     final EventPipeline eventPipeline = pipelineFactory.eventPipeline();
     final Result result = setupEventPipelineForSpaceId(spaceId, eventPipeline);
-    if (!(result instanceof SuccessResult)) return result;
+    if (!(result instanceof SuccessResult)) {
+      return result;
+    }
     return eventPipeline.sendEvent(rf);
   }
 
@@ -299,7 +314,7 @@ public class NHSpaceStorageReader implements IReadSession {
         logger.warn("Skipping inactive event handler {}", eventHandler.getId());
         continue;
       }
-      handlerImpls.add(eventHandler.newInstance(nakshaHub, space));
+      handlerImpls.add(handlerInstance(eventHandler, space));
     }
     if (handlerImpls.isEmpty()) {
       return new ErrorResult(XyzError.EXCEPTION, "No active EventHandlers found for space : " + spaceId);
@@ -319,6 +334,18 @@ public class NHSpaceStorageReader implements IReadSession {
     }
     logger.info("Handler types identified [{}]", handlerTypes);
     return new SuccessResult();
+  }
+
+  private IEventHandler handlerInstance(EventHandler eventHandler, Space space) {
+    Fe3<IEventHandler, INaksha, EventHandler, Space> handlerInstantiation =
+        (Fe3<IEventHandler, INaksha, EventHandler, Space>)
+            getEventHandlerConstructor(eventHandler.getClassName(), EventHandler.class, space.getClass());
+    try {
+      return handlerInstantiation.call(nakshaHub, eventHandler, space);
+    } catch (Exception e) {
+      logger.warn("Instantiation of event handler {} failed", eventHandler, e);
+      throw unchecked(e);
+    }
   }
 
   /**
@@ -343,6 +370,8 @@ public class NHSpaceStorageReader implements IReadSession {
 
   protected void addSpaceIdToStreamInfo(final @Nullable String spaceId) {
     final StreamInfo streamInfo = context.getStreamInfo();
-    if (streamInfo != null) streamInfo.setSpaceIdIfMissing(spaceId);
+    if (streamInfo != null) {
+      streamInfo.setSpaceIdIfMissing(spaceId);
+    }
   }
 }
