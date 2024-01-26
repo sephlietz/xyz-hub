@@ -25,6 +25,7 @@ import com.here.naksha.lib.core.models.naksha.EventHandler;
 import com.here.naksha.lib.core.models.storage.ErrorResult;
 import com.here.naksha.lib.core.models.storage.Result;
 import com.here.naksha.lib.core.models.storage.SuccessResult;
+import com.here.naksha.lib.core.models.storage.XyzFeatureCodec;
 import com.here.naksha.lib.handlers.DefaultStorageHandler;
 import com.here.naksha.lib.handlers.DefaultStorageHandlerProperties;
 import org.apache.commons.lang3.StringUtils;
@@ -37,11 +38,12 @@ public class IntHandlerForEventHandlers extends AdminFeatureEventHandler<EventHa
   }
 
   @Override
-  protected @NotNull Result validateFeature(EventHandler eventHandler) {
-    Result basicValidation = super.validateFeature(eventHandler);
+  protected @NotNull Result validateFeature(XyzFeatureCodec handlerCodec) {
+    Result basicValidation = super.validateFeature(handlerCodec);
     if (basicValidation instanceof ErrorResult) {
       return basicValidation;
     }
+    EventHandler eventHandler = (EventHandler) handlerCodec.getFeature();
     Result pluginValidation = PluginPropertiesValidator.pluginValidation(eventHandler);
     if (pluginValidation instanceof ErrorResult) {
       return pluginValidation;

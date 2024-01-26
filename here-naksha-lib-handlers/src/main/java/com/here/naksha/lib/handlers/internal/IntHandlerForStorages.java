@@ -24,6 +24,7 @@ import com.here.naksha.lib.core.INaksha;
 import com.here.naksha.lib.core.models.naksha.Storage;
 import com.here.naksha.lib.core.models.storage.ErrorResult;
 import com.here.naksha.lib.core.models.storage.Result;
+import com.here.naksha.lib.core.models.storage.XyzFeatureCodec;
 import org.jetbrains.annotations.NotNull;
 
 public class IntHandlerForStorages extends AdminFeatureEventHandler<Storage> {
@@ -33,11 +34,11 @@ public class IntHandlerForStorages extends AdminFeatureEventHandler<Storage> {
   }
 
   @Override
-  protected @NotNull Result validateFeature(Storage storage) {
-    Result basicValidation = super.validateFeature(storage);
+  protected @NotNull Result validateFeature(XyzFeatureCodec featureCodec) {
+    Result basicValidation = super.validateFeature(featureCodec);
     if (basicValidation instanceof ErrorResult) {
       return basicValidation;
     }
-    return pluginValidation(storage);
+    return pluginValidation((Storage) featureCodec.getFeature());
   }
 }
